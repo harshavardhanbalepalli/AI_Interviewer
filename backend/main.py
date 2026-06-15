@@ -4,10 +4,21 @@ from database import Base, engine
 from routes.admin import router as admin_router
 from routes.resume import router as resume_router
 from routes.interview import router as interview_router
+from fastapi.middleware.cors import CORSMiddleware
 
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173"
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(
     admin_router,

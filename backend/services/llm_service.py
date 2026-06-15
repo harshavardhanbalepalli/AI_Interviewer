@@ -13,23 +13,59 @@ client = Groq(
 def generate_next_question(
     history
     ):
-    prompt = f"""
-    You are a technical interviewer.
-    you will find the resume and jobdescription in the history 
+    messages = history.copy()
 
-    Generate ONE interview question.
-    this is your previous question and candidates response now generate a follow up question
-    {history}
-    Do not provide explanations.
-    """
+    messages.append(
+    {
+        "role": "user",
+        "content": """
+Ask the next interview question.
 
+Only return the question.
+Do not evaluate the candidate.
+Do not provide feedback.
+"""
+    }
+)
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=history
+    )
+    return response.choices[0].message.content
+
+def evaluate_interview(
+    transcript
+):
     response = client.chat.completions.create(
         model="llama-3.3-70b-versatile",
         messages=[
             {
                 "role": "user",
-                "content": prompt
+                "content": f"""
+                Evaluate this interview.
+
+                {transcript}
+
+                Give:
+                1. Score
+                2. Strengths
+                3. Weaknesses
+                4. Feedback
+                """
             }
         ]
     )
+    f"""
+You are a senior technical interviewer.
+
+Evaluate the candidate.
+
+Interview Transcript:
+    Return:
+
+    1. Score out of 10
+    2. Strengths
+    3. Weaknesses
+    4. Final feedback
+    """
     return response.choices[0].message.content

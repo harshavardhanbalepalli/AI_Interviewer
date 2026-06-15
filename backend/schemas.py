@@ -22,4 +22,9 @@ class InterviewStartRequest(BaseModel):
     jd_id: int
 
 class AnswerRequest(BaseModel):
+    interview_id: int
     answer: str
+
+class EndInterview(BaseModel):
+    interview_id: int
+    
