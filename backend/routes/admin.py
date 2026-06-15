@@ -42,7 +42,7 @@ def create_jd(jd: JobDescriptionRequest):
 
 # READ ALL
 @router.get(
-    "/admin/jd",
+    "/jd",
     response_model=list[JobDescriptionResponse]
 )
 def get_jd():
@@ -59,7 +59,7 @@ def get_jd():
 
 # READ ONE
 @router.get(
-    "/admin/jd/{id}",
+    "/jd/{id}",
     response_model=JobDescriptionResponse
 )
 def get_single_jd(id: int):
@@ -87,7 +87,7 @@ def get_single_jd(id: int):
 
 # UPDATE
 @router.put(
-    "/admin/jd/{id}",
+    "/jd/{id}",
     response_model=JobDescriptionResponse
 )
 def update_jd(

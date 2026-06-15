@@ -47,7 +47,7 @@ async def upload_resume(
         db.add(resume)
         db.commit()
         db.refresh(resume)
-
+        print("received resume")
         return {
             "resume_id": resume.id,
             "status": "uploaded"
