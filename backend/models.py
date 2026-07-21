@@ -13,6 +13,11 @@ class Resume(Base):
     __tablename__ = "resumes"
     
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(
+    Integer,
+    ForeignKey("users.id"),
+    nullable=False
+)
     file_path = Column(String)
     resume_text = Column(Text)
 
@@ -22,7 +27,11 @@ class Interview(Base):
     __tablename__ = "interviews"
 
     id = Column(Integer, primary_key=True, index=True)
-
+    user_id = Column(
+    Integer,
+    ForeignKey("users.id"),
+    nullable=False
+)
     resume_id = Column(
         Integer,
         ForeignKey("resumes.id") # foreign Key -->Only valid resume ids allowed
@@ -68,3 +77,28 @@ class InterviewEvaluation(Base):
     )
 
     feedback = Column(Text)
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True
+    )
+
+    email = Column(
+        String,
+        unique=True,
+        nullable=False
+    )
+
+    password_hash = Column(
+        String,
+        nullable=False
+    )
+
+    role = Column(
+        String,
+        default="candidate"
+    )

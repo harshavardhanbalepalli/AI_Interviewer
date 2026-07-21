@@ -1,26 +1,45 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import (
+    APIRouter,
+    HTTPException,
+    Depends
+)
 
 from database import SessionLocal
+
 from models import JobDescription
+
 from schemas import (
     JobDescriptionRequest,
     JobDescriptionResponse
 )
 
+from auth.dependencies import (
+    require_admin
+)
+
 router = APIRouter()
+
 
 @router.get("/")
 def home():
-    return {"message": "Hello"}
+    return {
+        "message": "Hello"
+    }
 
 
-# CREATE
-@router.post("/admin/jd")
-def create_jd(jd: JobDescriptionRequest):
+# CREATE JD (ADMIN ONLY)
+@router.post("/jd")
+def create_jd(
+    jd: JobDescriptionRequest,
+    current_user=Depends(
+        require_admin
+    )
+):
 
     db = SessionLocal()
 
     try:
+
         job = JobDescription(
             title=jd.title,
             description=jd.description,
@@ -40,43 +59,62 @@ def create_jd(jd: JobDescriptionRequest):
         db.close()
 
 
-# READ ALL
+# READ ALL JDS (PUBLIC)
 @router.get(
     "/jd",
-    response_model=list[JobDescriptionResponse]
+    response_model=list[
+        JobDescriptionResponse
+    ]
 )
 def get_jd():
 
     db = SessionLocal()
 
     try:
-        jobs = db.query(JobDescription).all()
+
+        jobs = (
+            db.query(
+                JobDescription
+            )
+            .all()
+        )
+
         return jobs
 
     finally:
         db.close()
 
 
-# READ ONE
+# READ SINGLE JD (PUBLIC)
 @router.get(
     "/jd/{id}",
-    response_model=JobDescriptionResponse
+    response_model=
+    JobDescriptionResponse
 )
-def get_single_jd(id: int):
+def get_single_jd(
+    id: int
+):
 
     db = SessionLocal()
 
     try:
+
         job = (
-            db.query(JobDescription)
-            .filter(JobDescription.id == id)
+            db.query(
+                JobDescription
+            )
+            .filter(
+                JobDescription.id == id
+            )
             .first()
         )
 
         if not job:
+
             raise HTTPException(
                 status_code=404,
-                detail="Job Description not found"
+                detail=
+                "Job Description not found"
             )
 
         return job
@@ -85,33 +123,47 @@ def get_single_jd(id: int):
         db.close()
 
 
-# UPDATE
+# UPDATE JD (ADMIN ONLY)
 @router.put(
     "/jd/{id}",
-    response_model=JobDescriptionResponse
+    response_model=
+    JobDescriptionResponse
 )
 def update_jd(
     id: int,
-    jd: JobDescriptionRequest
+    jd: JobDescriptionRequest,
+
+    current_user=Depends(
+        require_admin
+    )
 ):
 
     db = SessionLocal()
 
     try:
+
         job = (
-            db.query(JobDescription)
-            .filter(JobDescription.id == id)
+            db.query(
+                JobDescription
+            )
+            .filter(
+                JobDescription.id == id
+            )
             .first()
         )
 
         if not job:
+
             raise HTTPException(
                 status_code=404,
-                detail="Job Description not found"
+                detail=
+                "Job Description not found"
             )
 
         job.title = jd.title
-        job.description = jd.description
+        job.description = (
+            jd.description
+        )
         job.skills = jd.skills
 
         db.commit()
@@ -123,33 +175,50 @@ def update_jd(
         db.close()
 
 
-# DELETE
-@router.delete("/jd/{id}")
-def delete_jd(id: int):
+# DELETE JD (ADMIN ONLY)
+@router.delete(
+    "/jd/{id}"
+)
+def delete_jd(
+    id: int,
+
+    current_user=Depends(
+        require_admin
+    )
+):
 
     db = SessionLocal()
 
     try:
+
         job = (
-            db.query(JobDescription)
-            .filter(JobDescription.id == id)
+            db.query(
+                JobDescription
+            )
+            .filter(
+                JobDescription.id == id
+            )
             .first()
         )
 
         if not job:
+
             raise HTTPException(
                 status_code=404,
-                detail="Job Description not found"
+                detail=
+                "Job Description not found"
             )
 
         db.delete(job)
+
         db.commit()
 
         return {
             "status": "success",
-            "message": f"JD {id} deleted"
+            "message":
+            f"JD {id} deleted"
         }
 
     finally:
         db.close()
-
+        

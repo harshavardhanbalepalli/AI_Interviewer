@@ -28,3 +28,11 @@ class AnswerRequest(BaseModel):
 class EndInterview(BaseModel):
     interview_id: int
     
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
