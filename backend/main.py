@@ -5,6 +5,7 @@ from routes.admin import router as admin_router
 from routes.resume import router as resume_router
 from routes.interview import router as interview_router
 from fastapi.middleware.cors import CORSMiddleware
+from routes import auth
 
 Base.metadata.create_all(bind=engine)
 
@@ -35,6 +36,12 @@ app.include_router(
     interview_router,
     prefix="/interview",
     tags=["Interview"]
+)
+
+app.include_router(
+    auth.router,
+    prefix="/auth",
+    tags=["Auth"]
 )
 
 @app.get("/")

@@ -1,4 +1,16 @@
-backend/venv/
-backend/uploads/
+# Environment
 .env
+
+# Python
+venv/
 __pycache__/
+*.pyc
+
+# Uploads
+uploads/
+
+# macOS
+.DS_Store
+
+# Zip files
+*.zip

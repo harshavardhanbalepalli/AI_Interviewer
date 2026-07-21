@@ -1,10 +1,10 @@
 import fitz #used to read pdf's
 import os #for file path's and folders
 
-from fastapi import APIRouter, UploadFile, File
+from fastapi import APIRouter, UploadFile, File, Depends
 from database import SessionLocal
 from models import Resume
-
+from auth.dependencies import get_current_user
 router = APIRouter()
 
 UPLOAD_DIR = "uploads" # creates a new upload folder
@@ -14,7 +14,8 @@ os.makedirs(UPLOAD_DIR, exist_ok=True) # if it exists then do nothing
 
 @router.post("/upload")
 async def upload_resume(
-    file: UploadFile = File(...) #accept upload file 
+    file: UploadFile = File(...), #accept upload file
+    current_user=Depends(get_current_user) 
 ):
     db = SessionLocal()
 
@@ -38,8 +39,9 @@ async def upload_resume(
             extracted_text += page.get_text()
 
         pdf.close()
-        print(extracted_text)
+        print("Resume text extracted Successfully")
         resume = Resume(
+            user_id=current_user["user_id"],
             file_path=file_path,
             resume_text=extracted_text
         )  # creates an orm object
