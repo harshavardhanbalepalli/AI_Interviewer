@@ -6,7 +6,7 @@ from fastapi import (
 
 from database import SessionLocal
 
-from models import JobDescription
+from models import JobDescription, Company
 
 from schemas import (
     JobDescriptionRequest,
@@ -40,10 +40,18 @@ def create_jd(
 
     try:
 
+        company = (
+            db.query(Company)
+            .filter(Company.id == current_user["company_id"])
+            .first()
+        )
+
         job = JobDescription(
             title=jd.title,
             description=jd.description,
-            skills=jd.skills
+            skills=jd.skills,
+            company_id=company.id,
+            company_name=company.name
         )
 
         db.add(job)
@@ -160,6 +168,14 @@ def update_jd(
                 "Job Description not found"
             )
 
+        if job.company_id != current_user["company_id"]:
+
+            raise HTTPException(
+                status_code=403,
+                detail=
+                "You do not have permission to modify this Job Description"
+            )
+
         job.title = jd.title
         job.description = (
             jd.description
@@ -207,6 +223,14 @@ def delete_jd(
                 status_code=404,
                 detail=
                 "Job Description not found"
+            )
+
+        if job.company_id != current_user["company_id"]:
+
+            raise HTTPException(
+                status_code=403,
+                detail=
+                "You do not have permission to delete this Job Description"
             )
 
         db.delete(job)

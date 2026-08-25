@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 
 from database import SessionLocal
 
-from models import User
+from models import User, Company
 from auth.security import (
     decode_access_token
 )
@@ -43,14 +43,44 @@ def register(
         status_code=400,
         detail="Email already registered"
     )
-    print(data.password)
-    print(len(data.password))
+
+    if data.role not in ("candidate", "admin"):
+        raise HTTPException(
+            status_code=400,
+            detail="Role must be 'candidate' or 'admin'"
+        )
+
+    company_id = None
+
+    if data.role == "admin":
+        if not data.company_name:
+            raise HTTPException(
+                status_code=400,
+                detail="company_name is required for admin accounts"
+            )
+
+        company = (
+            db.query(Company)
+            .filter(Company.name == data.company_name)
+            .first()
+        )
+
+        if not company:
+            company = Company(name=data.company_name)
+            db.add(company)
+            db.commit()
+            db.refresh(company)
+
+        company_id = company.id
+
     hashed_password = hash_password(
     data.password
 )
     user = User(
     email=data.email,
-    password_hash=hashed_password
+    password_hash=hashed_password,
+    role=data.role,
+    company_id=company_id
 )
     db.add(user)
     db.commit()
@@ -58,7 +88,8 @@ def register(
     token = create_access_token({
         "user_id": user.id,
         "email": user.email,
-        "role": user.role
+        "role": user.role,
+        "company_id": user.company_id
     })
 
     return {
@@ -101,7 +132,8 @@ def login(
     {
         "user_id": user.id,
         "email": user.email,
-        "role": user.role
+        "role": user.role,
+        "company_id": user.company_id
     }
 )
     return {

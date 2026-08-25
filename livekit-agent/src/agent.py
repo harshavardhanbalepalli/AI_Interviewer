@@ -46,7 +46,6 @@ async def get_interview_context(interview_id: int):
     "Interview Context:\n%s",
     json.dumps(data, indent=2)
             
-            
 )
     return data
 
@@ -76,9 +75,130 @@ async def on_session_end(ctx: JobContext):
     logger.info("SESSION ENDED")
     logger.info("=" * 60)
 
-    report = ctx.make_session_report()
+    metadata = json.loads(ctx.room.metadata)
+    interview_id = metadata["interview_id"]
 
-    logger.info("%s", report)
+    report = ctx.make_session_report()
+    evaluation_ctx = report.chat_history.copy()
+
+    evaluation_ctx.add_message(
+        role="user",
+        content="""
+The interview has now ended.
+
+Evaluate the candidate based only on the interview above and the provided
+resume and job description.
+
+Generate an internal hiring evaluation for the administrator.
+
+Respond with ONLY a single valid JSON object, no markdown code fences, no
+commentary before or after it, in exactly this shape:
+
+{
+  "technical_knowledge": <integer 0-100>,
+  "problem_solving": <integer 0-100>,
+  "communication": <integer 0-100>,
+  "relevance_to_jd": <integer 0-100>,
+  "overall_score": <integer 0-100, your holistic judgment>,
+  "summary": "<a paragraph covering strengths, weaknesses, and your hiring recommendation>"
+}
+
+Do not address the candidate.
+Be specific and base the evaluation on evidence from the interview.
+"""
+    )
+
+    evaluation_llm = inference.LLM(
+        model="openai/gpt-5.2-chat-latest"
+    )
+
+    logger.info(
+        "Generating evaluation for interview %s",
+        interview_id
+    )
+
+    stream = evaluation_llm.chat(
+        chat_ctx=evaluation_ctx
+    )
+
+    raw_response = ""
+
+    async for chunk in stream:
+        if chunk.delta and chunk.delta.content:
+            raw_response += chunk.delta.content
+
+    logger.info("=" * 60)
+    logger.info("EVALUATION FOR INTERVIEW %s", interview_id)
+    logger.info("%s", raw_response)
+    logger.info("=" * 60)
+
+    evaluation = parse_evaluation(raw_response)
+
+    if evaluation is None:
+        logger.error(
+            "Could not parse evaluation JSON for interview %s, skipping submission",
+            interview_id,
+        )
+        return
+
+    await submit_evaluation(interview_id, evaluation)
+
+
+def parse_evaluation(raw_response: str) -> dict | None:
+    text = raw_response.strip()
+
+    if text.startswith("```"):
+        text = text.split("```")[1]
+        if text.startswith("json"):
+            text = text[len("json"):]
+        text = text.strip()
+
+    try:
+        data = json.loads(text)
+    except json.JSONDecodeError:
+        logger.error("Failed to parse evaluation JSON: %s", raw_response)
+        return None
+
+    required_fields = (
+        "technical_knowledge",
+        "problem_solving",
+        "communication",
+        "relevance_to_jd",
+        "overall_score",
+        "summary",
+    )
+
+    if not all(field in data for field in required_fields):
+        logger.error("Evaluation JSON missing required fields: %s", data)
+        return None
+
+    return data
+
+
+async def submit_evaluation(interview_id: int, evaluation: dict):
+    headers = {
+        "X-Agent-Key": os.getenv("AGENT_API_KEY")
+    }
+
+    async with aiohttp.ClientSession() as session:
+        backend_url = os.getenv("BACKEND_URL")
+        async with session.post(
+            f"{backend_url}/interview/internal/evaluation/{interview_id}",
+            headers=headers,
+            json=evaluation,
+        ) as response:
+            if response.status != 200:
+                logger.error(
+                    "Failed to submit evaluation for interview %s: %s %s",
+                    interview_id,
+                    response.status,
+                    await response.text(),
+                )
+            else:
+                logger.info(
+                    "Evaluation submitted successfully for interview %s",
+                    interview_id,
+                )
 
 @server.rtc_session(agent_name="livekit-learning", on_session_end=on_session_end,)
 
@@ -99,9 +219,6 @@ async def my_agent(ctx: JobContext):
     else:
         interview_id = int(ctx.room.name.split("-")[1])
 
-    metadata = json.loads(ctx.room.metadata)
-    interview_id = metadata["interview_id"]
-
     interview_context = await get_interview_context(interview_id)
     resume = interview_context.get("resume", "")
     job_description = interview_context.get("job_description", "")
@@ -113,15 +230,15 @@ async def my_agent(ctx: JobContext):
 )
     logger.info("Interview Context:")
     #instead of logging the whole resume, history and jd we are goind to log the summay and lengths of them 
-    logger.info("=" * 60)
-    logger.info("Interview ID: %s", interview_id)
-    logger.info("Resume: %d chars", len(resume))
-    logger.info("Job Description: %d chars", len(job_description))
-    logger.info("History Messages: %d", len(history))
-    logger.info("=" * 60)
-    logger.info("Room Name: %s", ctx.room.name)
-    logger.info("Room Metadata: %s", ctx.room.metadata)
-    logger.info("Remote Participants: %s", ctx.room.remote_participants)
+    # logger.info("=" * 60)
+    # logger.info("Interview ID: %s", interview_id)
+    # logger.info("Resume: %d chars", len(resume))
+    # logger.info("Job Description: %d chars", len(job_description))
+    # logger.info("History Messages: %d", len(history))
+    # logger.info("=" * 60)
+    # logger.info("Room Name: %s", ctx.room.name)
+    # logger.info("Room Metadata: %s", ctx.room.metadata)
+    # logger.info("Remote Participants: %s", ctx.room.remote_participants)
     # Set up a voice AI pipeline using OpenAI, Cartesia, Deepgram, and the LiveKit turn detector
     session = AgentSession(
         # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
