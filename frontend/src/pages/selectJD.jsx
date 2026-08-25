@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { BriefcaseBusiness } from "lucide-react";
 function SelectJD() {
   const [jds, setJds] = useState([]);
+  const [myInterviews, setMyInterviews] = useState({});
   const token = localStorage.getItem("token");
   useEffect(() => {
     fetch("http://127.0.0.1:8000/admin/jd")
@@ -9,6 +11,23 @@ function SelectJD() {
       .then((data) => {
         setJds(data);
         console.log(data);
+      })
+      .catch((error) => {
+        console.error(error);
+      });
+
+    fetch("http://127.0.0.1:8000/interview/my-interviews", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        const statusByJd = {};
+        (Array.isArray(data) ? data : []).forEach((entry) => {
+          statusByJd[entry.jd_id] = entry.status;
+        });
+        setMyInterviews(statusByJd);
       })
       .catch((error) => {
         console.error(error);
@@ -35,6 +54,12 @@ function SelectJD() {
 console.log(response.status);
 
 const data = await response.json();
+
+if (!response.ok) {
+  alert(data.detail || "Unable to start interview.");
+  return;
+}
+
 localStorage.setItem(
     "livekit_token",
     data.livekit_token
@@ -55,16 +80,23 @@ console.log(data);
     navigate("/interview");
   };
   return (
-  <div className="min-h-screen bg-slate-50">
+  <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-slate-100">
 
     <div className="max-w-7xl mx-auto px-8 py-12">
 
-      <h1 className="text-5xl font-bold text-slate-900">
+      <h2 className="text-2xl font-black tracking-tight">
+        <span className="text-orange-500">A</span>h
+        <span className="text-orange-500">I</span>re
+      </h2>
+
+      <h1 className="mt-4 text-5xl font-bold text-slate-900">
         Choose Your Position
       </h1>
 
       <p className="mt-3 text-lg text-slate-600">
-        Select a role to begin your AI screening interview.
+        {jds.length > 0
+          ? `${jds.length} open position${jds.length === 1 ? "" : "s"} matched to your resume.`
+          : "Select a role to begin your AI screening interview."}
       </p>
 
       <div className="grid lg:grid-cols-2 gap-8 mt-12">
@@ -78,9 +110,23 @@ console.log(data);
 
             <div className="flex items-center justify-between">
 
-              <h2 className="text-2xl font-bold text-slate-900">
-                {jd.title}
-              </h2>
+              <div className="flex items-center gap-4">
+                <div className="bg-orange-100 p-3 rounded-xl">
+                  <BriefcaseBusiness className="text-orange-500 w-6 h-6" />
+                </div>
+
+                <div>
+                  <h2 className="text-2xl font-bold text-slate-900">
+                    {jd.title}
+                  </h2>
+
+                  {jd.company_name && (
+                    <p className="text-sm text-slate-500">
+                      at {jd.company_name}
+                    </p>
+                  )}
+                </div>
+              </div>
 
               <span className="bg-orange-100 text-orange-600 px-4 py-2 rounded-full text-sm font-semibold">
                 Open
@@ -117,12 +163,28 @@ console.log(data);
 
             </div>
 
-            <button
-              onClick={() => startInterview(jd.id)}
-              className="mt-10 w-full bg-orange-500 hover:bg-orange-600 text-white h-12 rounded-xl font-semibold transition"
-            >
-              Apply & Start AI Screening
-            </button>
+            {myInterviews[jd.id] === "completed" ? (
+              <button
+                disabled
+                className="mt-10 w-full bg-green-100 text-green-700 h-12 rounded-xl font-semibold cursor-not-allowed"
+              >
+                Already Completed
+              </button>
+            ) : myInterviews[jd.id] === "active" ? (
+              <button
+                disabled
+                className="mt-10 w-full bg-orange-100 text-orange-700 h-12 rounded-xl font-semibold cursor-not-allowed"
+              >
+                Interview In Progress
+              </button>
+            ) : (
+              <button
+                onClick={() => startInterview(jd.id)}
+                className="mt-10 w-full bg-orange-500 hover:bg-orange-600 text-white h-12 rounded-xl font-semibold transition"
+              >
+                Apply & Start AI Screening
+              </button>
+            )}
 
           </div>
 

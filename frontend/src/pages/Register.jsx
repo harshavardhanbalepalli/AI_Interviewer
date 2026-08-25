@@ -11,6 +11,10 @@ function Register() {
 
   const [password, setPassword] = useState("");
 
+  const [role, setRole] = useState("candidate");
+
+  const [companyName, setCompanyName] = useState("");
+
   const register = async () => {
     const response = await fetch("http://127.0.0.1:8000/auth/register", {
       method: "POST",
@@ -22,14 +26,21 @@ function Register() {
       body: JSON.stringify({
         email,
         password,
+        role,
+        company_name: role === "admin" ? companyName : null,
       }),
     });
 
     const data = await response.json();
 
+    if (!response.ok) {
+      alert(data.detail || "Registration failed");
+      return;
+    }
+
     localStorage.setItem("token", data.access_token);
 
-    navigate("/");
+    navigate(role === "admin" ? "/admin" : "/");
   };
 
   return (
@@ -95,6 +106,54 @@ function Register() {
               className="h-12 rounded-xl border-gray-300 focus:border-orange-500"
             />
           </div>
+
+          <div>
+            <Label className="mb-2 block">
+              I am a
+            </Label>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setRole("candidate")}
+                className={`h-12 rounded-xl border font-semibold transition ${
+                  role === "candidate"
+                    ? "bg-orange-500 text-white border-orange-500"
+                    : "bg-white text-gray-700 border-gray-300 hover:border-orange-500"
+                }`}
+              >
+                Candidate
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRole("admin")}
+                className={`h-12 rounded-xl border font-semibold transition ${
+                  role === "admin"
+                    ? "bg-orange-500 text-white border-orange-500"
+                    : "bg-white text-gray-700 border-gray-300 hover:border-orange-500"
+                }`}
+              >
+                Admin
+              </button>
+            </div>
+          </div>
+
+          {role === "admin" && (
+            <div>
+              <Label className="mb-2 block">
+                Company Name
+              </Label>
+
+              <Input
+                type="text"
+                placeholder="Enter your company name"
+                value={companyName}
+                onChange={(e) => setCompanyName(e.target.value)}
+                className="h-12 rounded-xl border-gray-300 focus:border-orange-500"
+              />
+            </div>
+          )}
 
           <Button
             onClick={register}
