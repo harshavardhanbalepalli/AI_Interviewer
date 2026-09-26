@@ -14,7 +14,7 @@ from livekit.agents import (
     inference,
     room_io,
 )
-from livekit.plugins import ai_coustics
+from livekit.plugins import ai_coustics, assemblyai
 from prompts import build_interview_prompt
 logger = logging.getLogger("agent")
 
@@ -242,8 +242,11 @@ async def my_agent(ctx: JobContext):
     # Set up a voice AI pipeline using OpenAI, Cartesia, Deepgram, and the LiveKit turn detector
     session = AgentSession(
         # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
-        # See all available models at https://docs.livekit.io/agents/models/stt/
-        stt=inference.STT(model="deepgram/nova-3", language="multi"),
+        # Using AssemblyAI's streaming STT directly (reads ASSEMBLYAI_API_KEY from .env.local)
+        # See https://docs.livekit.io/agents/models/stt/plugins/assemblyai/
+        stt=assemblyai.STT(
+            model="universal-3-5-pro",
+        ),
         # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
         # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
         tts=inference.TTS(
