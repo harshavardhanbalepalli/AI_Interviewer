@@ -9,6 +9,7 @@ import ProtectedRoute from "./pages/ProtectedRoute";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminInterviewDetail from "./pages/AdminInterviewDetail";
 import AdminManageJDs from "./pages/AdminManageJDs";
+import Showcase from "./pages/Showcase";
 function App() {
   return (
     <BrowserRouter>
@@ -33,6 +34,7 @@ function App() {
         </ProtectedRoute>} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/showcase" element={<Showcase />} />
 
       </Routes>
       
