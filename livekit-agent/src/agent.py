@@ -259,6 +259,7 @@ async def my_agent(ctx: JobContext):
         # See more at https://docs.livekit.io/agents/build/turns
         turn_handling=TurnHandlingOptions(
             turn_detection=inference.TurnDetector(),
+            interruption={"min_duration": 0.8, "min_words": 2},
         ),
         # allow the LLM to generate a response while waiting for the end of turn
         # See more at https://docs.livekit.io/agents/build/audio/#preemptive-generation
