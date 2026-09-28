@@ -81,7 +81,7 @@ function AdminManageJDs() {
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   const loadJds = () => {
-    fetch("http://127.0.0.1:8000/admin/jd")
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/jd`)
       .then((response) => response.json())
       .then((data) => {
         const mine = Array.isArray(data)
@@ -101,7 +101,7 @@ function AdminManageJDs() {
   }, []);
 
   const createJd = async () => {
-    await fetch("http://127.0.0.1:8000/admin/jd", {
+    await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/jd`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -125,7 +125,7 @@ function AdminManageJDs() {
   };
 
   const saveEdit = async (id) => {
-    await fetch(`http://127.0.0.1:8000/admin/jd/${id}`, {
+    await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/jd/${id}`, {
       method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -139,7 +139,7 @@ function AdminManageJDs() {
   };
 
   const confirmDelete = async () => {
-    await fetch(`http://127.0.0.1:8000/admin/jd/${deleteTarget}`, {
+    await fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/jd/${deleteTarget}`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${token}`,

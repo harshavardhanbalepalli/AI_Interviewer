@@ -10,7 +10,7 @@ function AdminInterviewDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch(`http://127.0.0.1:8000/interview/result/${id}`, {
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/interview/result/${id}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

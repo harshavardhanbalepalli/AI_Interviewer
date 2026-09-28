@@ -11,7 +11,7 @@ function UploadResume() {
 
   useEffect(() => {
     const fetchResume = async () => {
-      const response = await fetch("http://127.0.0.1:8000/resume", {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/resume`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -32,7 +32,7 @@ function UploadResume() {
     const formData = new FormData();
     formData.append("file", file);
     console.log("Token:", token);
-    const response = await fetch("http://127.0.0.1:8000/resume/upload", {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/resume/upload`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

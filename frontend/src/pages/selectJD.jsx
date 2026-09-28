@@ -6,7 +6,7 @@ function SelectJD() {
   const [myInterviews, setMyInterviews] = useState({});
   const token = localStorage.getItem("token");
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/admin/jd")
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/admin/jd`)
       .then((response) => response.json())
       .then((data) => {
         setJds(data);
@@ -16,7 +16,7 @@ function SelectJD() {
         console.error(error);
       });
 
-    fetch("http://127.0.0.1:8000/interview/my-interviews", {
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/interview/my-interviews`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -40,7 +40,7 @@ function SelectJD() {
     console.log("resume_id:", resume_id);
     console.log("jd_id:", jd_id);
 
-    const response = await fetch("http://127.0.0.1:8000/interview/start", {
+    const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/interview/start`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,

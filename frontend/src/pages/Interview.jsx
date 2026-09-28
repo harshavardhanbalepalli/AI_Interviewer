@@ -30,7 +30,7 @@ function Interview() {
     const jwt = localStorage.getItem("token");
     
     const response = await fetch(
-    `http://127.0.0.1:8000/interview/finish/${interviewId}`,
+    `${import.meta.env.VITE_API_BASE_URL}/interview/finish/${interviewId}`,
     {
         method: "POST",
         headers: {
@@ -63,7 +63,7 @@ function Interview() {
 
   return (
     <LiveKitRoom
-      serverUrl="wss://ai-interviewer-u1y35hf3.livekit.cloud"
+      serverUrl={import.meta.env.VITE_LIVEKIT_URL}
       token={token}
       connect={true}
       audio={true}

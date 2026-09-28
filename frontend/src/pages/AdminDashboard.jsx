@@ -21,7 +21,7 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("http://127.0.0.1:8000/interview/results", {
+    fetch(`${import.meta.env.VITE_API_BASE_URL}/interview/results`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
