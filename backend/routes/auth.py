@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException
+from sqlalchemy.orm import Session
 
-from database import SessionLocal
+from database import get_db
 
 from models import User, Company
 from auth.security import (
@@ -27,9 +28,9 @@ def home():
 
 @router.post("/register")
 def register(
-    data: RegisterRequest
+    data: RegisterRequest,
+    db: Session = Depends(get_db)
 ):
-    db = SessionLocal()
     # checking if user already exists in the db
     existing_user = (
     db.query(User)
@@ -98,10 +99,9 @@ def register(
     }
 @router.post("/login")
 def login(
-    data: LoginRequest
+    data: LoginRequest,
+    db: Session = Depends(get_db)
 ):
-
-    db = SessionLocal()
 
     user = (
         db.query(User)

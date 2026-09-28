@@ -3,8 +3,9 @@ from fastapi import (
     HTTPException,
     Depends
 )
+let /from sqlalchemy.orm import Session
 
-from database import SessionLocal
+from database import get_db
 
 from models import JobDescription, Company
 
@@ -33,38 +34,32 @@ def create_jd(
     jd: JobDescriptionRequest,
     current_user=Depends(
         require_admin
-    )
+    ),
+    db: Session = Depends(get_db)
 ):
 
-    db = SessionLocal()
+    company = (
+        db.query(Company)
+        .filter(Company.id == current_user["company_id"])
+        .first()
+    )
 
-    try:
+    job = JobDescription(
+        title=jd.title,
+        description=jd.description,
+        skills=jd.skills,
+        company_id=company.id,
+        company_name=company.name
+    )
 
-        company = (
-            db.query(Company)
-            .filter(Company.id == current_user["company_id"])
-            .first()
-        )
+    db.add(job)
+    db.commit()
+    db.refresh(job)
 
-        job = JobDescription(
-            title=jd.title,
-            description=jd.description,
-            skills=jd.skills,
-            company_id=company.id,
-            company_name=company.name
-        )
-
-        db.add(job)
-        db.commit()
-        db.refresh(job)
-
-        return {
-            "status": "success",
-            "job": job
-        }
-
-    finally:
-        db.close()
+    return {
+        "status": "success",
+        "job": job
+    }
 
 
 # READ ALL JDS (PUBLIC)
@@ -74,23 +69,16 @@ def create_jd(
         JobDescriptionResponse
     ]
 )
-def get_jd():
+def get_jd(db: Session = Depends(get_db)):
 
-    db = SessionLocal()
-
-    try:
-
-        jobs = (
-            db.query(
-                JobDescription
-            )
-            .all()
+    jobs = (
+        db.query(
+            JobDescription
         )
+        .all()
+    )
 
-        return jobs
-
-    finally:
-        db.close()
+    return jobs
 
 
 # READ SINGLE JD (PUBLIC)
@@ -100,35 +88,29 @@ def get_jd():
     JobDescriptionResponse
 )
 def get_single_jd(
-    id: int
+    id: int,
+    db: Session = Depends(get_db)
 ):
 
-    db = SessionLocal()
+    job = (
+        db.query(
+            JobDescription
+        )
+        .filter(
+            JobDescription.id == id
+        )
+        .first()
+    )
 
-    try:
+    if not job:
 
-        job = (
-            db.query(
-                JobDescription
-            )
-            .filter(
-                JobDescription.id == id
-            )
-            .first()
+        raise HTTPException(
+            status_code=404,
+            detail=
+            "Job Description not found"
         )
 
-        if not job:
-
-            raise HTTPException(
-                status_code=404,
-                detail=
-                "Job Description not found"
-            )
-
-        return job
-
-    finally:
-        db.close()
+    return job
 
 
 # UPDATE JD (ADMIN ONLY)
@@ -143,52 +125,46 @@ def update_jd(
 
     current_user=Depends(
         require_admin
-    )
+    ),
+    db: Session = Depends(get_db)
 ):
 
-    db = SessionLocal()
+    job = (
+        db.query(
+            JobDescription
+        )
+        .filter(
+            JobDescription.id == id
+        )
+        .first()
+    )
 
-    try:
+    if not job:
 
-        job = (
-            db.query(
-                JobDescription
-            )
-            .filter(
-                JobDescription.id == id
-            )
-            .first()
+        raise HTTPException(
+            status_code=404,
+            detail=
+            "Job Description not found"
         )
 
-        if not job:
+    if job.company_id != current_user["company_id"]:
 
-            raise HTTPException(
-                status_code=404,
-                detail=
-                "Job Description not found"
-            )
-
-        if job.company_id != current_user["company_id"]:
-
-            raise HTTPException(
-                status_code=403,
-                detail=
-                "You do not have permission to modify this Job Description"
-            )
-
-        job.title = jd.title
-        job.description = (
-            jd.description
+        raise HTTPException(
+            status_code=403,
+            detail=
+            "You do not have permission to modify this Job Description"
         )
-        job.skills = jd.skills
 
-        db.commit()
-        db.refresh(job)
+    job.title = jd.title
+    job.description = (
+        jd.description
+    )
+    job.skills = jd.skills
 
-        return job
+    db.commit()
+    db.refresh(job)
 
-    finally:
-        db.close()
+    return job
 
 
 # DELETE JD (ADMIN ONLY)
@@ -200,49 +176,42 @@ def delete_jd(
 
     current_user=Depends(
         require_admin
-    )
+    ),
+    db: Session = Depends(get_db)
 ):
 
-    db = SessionLocal()
+    job = (
+        db.query(
+            JobDescription
+        )
+        .filter(
+            JobDescription.id == id
+        )
+        .first()
+    )
 
-    try:
+    if not job:
 
-        job = (
-            db.query(
-                JobDescription
-            )
-            .filter(
-                JobDescription.id == id
-            )
-            .first()
+        raise HTTPException(
+            status_code=404,
+            detail=
+            "Job Description not found"
         )
 
-        if not job:
+    if job.company_id != current_user["company_id"]:
 
-            raise HTTPException(
-                status_code=404,
-                detail=
-                "Job Description not found"
-            )
+        raise HTTPException(
+            status_code=403,
+            detail=
+            "You do not have permission to delete this Job Description"
+        )
 
-        if job.company_id != current_user["company_id"]:
+    db.delete(job)
 
-            raise HTTPException(
-                status_code=403,
-                detail=
-                "You do not have permission to delete this Job Description"
-            )
+    db.commit()
 
-        db.delete(job)
-
-        db.commit()
-
-        return {
-            "status": "success",
-            "message":
-            f"JD {id} deleted"
-        }
-
-    finally:
-        db.close()
-        
+    return {
+        "status": "success",
+        "message":
+        f"JD {id} deleted"
+    }

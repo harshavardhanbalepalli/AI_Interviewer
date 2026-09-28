@@ -2,7 +2,8 @@ import os
 from dotenv import load_dotenv
 
 from fastapi import APIRouter, HTTPException, Depends
-from database import SessionLocal
+from sqlalchemy.orm import Session
+from database import get_db
 from models import Resume, JobDescription, Interview, Message, InterviewEvaluation, User
 from schemas import (InterviewStartRequest, FinishInterviewRequest, EvaluationSubmitRequest)
 from services.livekit_service import create_interview_room
@@ -19,9 +20,9 @@ AGENT_API_KEY = os.getenv("AGENT_API_KEY")
 @router.get("/internal/context/{interview_id}")
 def get_interview_context(
     interview_id: int,
-    _: None = Depends(verify_agent)
+    _: None = Depends(verify_agent),
+    db: Session = Depends(get_db)
 ):
-    db = SessionLocal()
     interview = (
     db.query(Interview)
     .filter(Interview.id == interview_id)
@@ -69,54 +70,49 @@ def get_interview_context(
 def submit_evaluation(
     interview_id: int,
     data: EvaluationSubmitRequest,
-    _: None = Depends(verify_agent)
+    _: None = Depends(verify_agent),
+    db: Session = Depends(get_db)
 ):
-    db = SessionLocal()
+    interview = (
+        db.query(Interview)
+        .filter(Interview.id == interview_id)
+        .first()
+    )
 
-    try:
-        interview = (
-            db.query(Interview)
-            .filter(Interview.id == interview_id)
-            .first()
+    if not interview:
+        raise HTTPException(
+            status_code=404,
+            detail="Interview not found"
         )
 
-        if not interview:
-            raise HTTPException(
-                status_code=404,
-                detail="Interview not found"
-            )
+    evaluation = (
+        db.query(InterviewEvaluation)
+        .filter(InterviewEvaluation.interview_id == interview_id)
+        .first()
+    )
 
-        evaluation = (
-            db.query(InterviewEvaluation)
-            .filter(InterviewEvaluation.interview_id == interview_id)
-            .first()
+    if evaluation:
+        evaluation.technical_knowledge = data.technical_knowledge
+        evaluation.problem_solving = data.problem_solving
+        evaluation.communication = data.communication
+        evaluation.relevance_to_jd = data.relevance_to_jd
+        evaluation.overall_score = data.overall_score
+        evaluation.summary = data.summary
+    else:
+        evaluation = InterviewEvaluation(
+            interview_id=interview_id,
+            technical_knowledge=data.technical_knowledge,
+            problem_solving=data.problem_solving,
+            communication=data.communication,
+            relevance_to_jd=data.relevance_to_jd,
+            overall_score=data.overall_score,
+            summary=data.summary,
         )
+        db.add(evaluation)
 
-        if evaluation:
-            evaluation.technical_knowledge = data.technical_knowledge
-            evaluation.problem_solving = data.problem_solving
-            evaluation.communication = data.communication
-            evaluation.relevance_to_jd = data.relevance_to_jd
-            evaluation.overall_score = data.overall_score
-            evaluation.summary = data.summary
-        else:
-            evaluation = InterviewEvaluation(
-                interview_id=interview_id,
-                technical_knowledge=data.technical_knowledge,
-                problem_solving=data.problem_solving,
-                communication=data.communication,
-                relevance_to_jd=data.relevance_to_jd,
-                overall_score=data.overall_score,
-                summary=data.summary,
-            )
-            db.add(evaluation)
+    db.commit()
 
-        db.commit()
-
-        return {"message": "Evaluation saved successfully."}
-
-    finally:
-        db.close()
+    return {"message": "Evaluation saved successfully."}
 
 
 @router.post("/start")
@@ -124,11 +120,9 @@ async def start_interview(
     data: InterviewStartRequest,
      current_user=Depends(
         get_current_user
-    )
-
+    ),
+    db: Session = Depends(get_db)
 ):
-    db = SessionLocal()
-
     jd = (
         db.query(JobDescription)
         .filter(JobDescription.id == data.jd_id)
@@ -136,7 +130,6 @@ async def start_interview(
     )
 
     if not jd:
-        db.close()
         raise HTTPException(
             status_code=404,
             detail="Job Description not found"
@@ -153,7 +146,6 @@ async def start_interview(
     )
 
     if existing:
-        db.close()
         if existing.status == "completed":
             raise HTTPException(
                 status_code=409,
@@ -186,7 +178,6 @@ async def start_interview(
     current_user,
 )
 
-    db.close()
     return {
     "interview_id": interview_id,
     "livekit_token": livekit["token"],
@@ -197,161 +188,142 @@ async def start_interview(
 def finish_interview(
     interview_id: int,
     data: FinishInterviewRequest,
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    db = SessionLocal()
+    interview = (
+        db.query(Interview)
+        .filter(
+            Interview.id == interview_id,
+            Interview.user_id == current_user["user_id"]
+        )
+        .first()
+    )
 
-    try:
-        interview = (
-            db.query(Interview)
-            .filter(
-                Interview.id == interview_id,
-                Interview.user_id == current_user["user_id"]
-            )
-            .first()
+    if interview is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Interview not found"
         )
 
-        if interview is None:
-            raise HTTPException(
-                status_code=404,
-                detail="Interview not found"
+    for msg in data.transcript:
+        db.add(
+            Message(
+                interview_id=interview.id,
+                role=msg.speaker,
+                content=msg.text,
+                timestamp=msg.timestamp,
             )
+        )
 
-        for msg in data.transcript:
-            db.add(
-                Message(
-                    interview_id=interview.id,
-                    role=msg.speaker,
-                    content=msg.text,
-                    timestamp=msg.timestamp,
-                )
-            )
+    interview.status = "completed"
 
-        interview.status = "completed"
+    db.commit()
 
-        db.commit()
+    return {
+        "message": "Interview completed successfully."
+    }
 
-        return {
-            "message": "Interview completed successfully."
-        }
-
-    finally:
-        db.close()
 @router.get("/my-interviews")
 def list_my_interviews(
-    current_user=Depends(get_current_user)
+    current_user=Depends(get_current_user),
+    db: Session = Depends(get_db)
 ):
-    db = SessionLocal()
+    interviews = (
+        db.query(Interview)
+        .filter(Interview.user_id == current_user["user_id"])
+        .all()
+    )
 
-    try:
-        interviews = (
-            db.query(Interview)
-            .filter(Interview.user_id == current_user["user_id"])
-            .all()
-        )
-
-        return [
-            {
-                "jd_id": interview.jd_id,
-                "status": interview.status,
-            }
-            for interview in interviews
-        ]
-
-    finally:
-        db.close()
+    return [
+        {
+            "jd_id": interview.jd_id,
+            "status": interview.status,
+        }
+        for interview in interviews
+    ]
 
 
 @router.get("/results")
 def list_results(
-    current_user=Depends(require_admin)
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db)
 ):
-    db = SessionLocal()
+    rows = (
+        db.query(Interview, JobDescription, User)
+        .join(JobDescription, Interview.jd_id == JobDescription.id)
+        .join(User, Interview.user_id == User.id)
+        .filter(Interview.company_id == current_user["company_id"])
+        .order_by(Interview.created_at.desc())
+        .all()
+    )
 
-    try:
-        rows = (
-            db.query(Interview, JobDescription, User)
-            .join(JobDescription, Interview.jd_id == JobDescription.id)
-            .join(User, Interview.user_id == User.id)
-            .filter(Interview.company_id == current_user["company_id"])
-            .order_by(Interview.created_at.desc())
-            .all()
-        )
-
-        return [
-            {
-                "interview_id": interview.id,
-                "candidate_email": user.email,
-                "jd_title": jd.title,
-                "status": interview.status,
-                "created_at": interview.created_at,
-            }
-            for interview, jd, user in rows
-        ]
-
-    finally:
-        db.close()
+    return [
+        {
+            "interview_id": interview.id,
+            "candidate_email": user.email,
+            "jd_title": jd.title,
+            "status": interview.status,
+            "created_at": interview.created_at,
+        }
+        for interview, jd, user in rows
+    ]
 
 
 @router.get("/result/{interview_id}")
 def get_result(
     interview_id: int,
-    current_user=Depends(require_admin)
+    current_user=Depends(require_admin),
+    db: Session = Depends(get_db)
 ):
-    db = SessionLocal()
+    interview = (
+        db.query(Interview)
+        .filter(Interview.id == interview_id)
+        .first()
+    )
 
-    try:
-        interview = (
-            db.query(Interview)
-            .filter(Interview.id == interview_id)
-            .first()
+    if not interview:
+        raise HTTPException(
+            status_code=404,
+            detail="Interview not found"
         )
 
-        if not interview:
-            raise HTTPException(
-                status_code=404,
-                detail="Interview not found"
-            )
-
-        if interview.company_id != current_user["company_id"]:
-            raise HTTPException(
-                status_code=403,
-                detail="You do not have permission to view this interview"
-            )
-
-        evaluation = (
-            db.query(InterviewEvaluation)
-            .filter(InterviewEvaluation.interview_id == interview_id)
-            .first()
+    if interview.company_id != current_user["company_id"]:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to view this interview"
         )
 
-        messages = (
-            db.query(Message)
-            .filter(Message.interview_id == interview_id)
-            .order_by(Message.id)
-            .all()
-        )
+    evaluation = (
+        db.query(InterviewEvaluation)
+        .filter(InterviewEvaluation.interview_id == interview_id)
+        .first()
+    )
 
-        return {
-            "interview_id": interview.id,
-            "status": interview.status,
-            "evaluation": {
-                "technical_knowledge": evaluation.technical_knowledge,
-                "problem_solving": evaluation.problem_solving,
-                "communication": evaluation.communication,
-                "relevance_to_jd": evaluation.relevance_to_jd,
-                "overall_score": evaluation.overall_score,
-                "summary": evaluation.summary,
-            } if evaluation else None,
-            "transcript": [
-                {
-                    "role": msg.role,
-                    "content": msg.content,
-                    "timestamp": msg.timestamp,
-                }
-                for msg in messages
-            ],
-        }
+    messages = (
+        db.query(Message)
+        .filter(Message.interview_id == interview_id)
+        .order_by(Message.id)
+        .all()
+    )
 
-    finally:
-        db.close()
+    return {
+        "interview_id": interview.id,
+        "status": interview.status,
+        "evaluation": {
+            "technical_knowledge": evaluation.technical_knowledge,
+            "problem_solving": evaluation.problem_solving,
+            "communication": evaluation.communication,
+            "relevance_to_jd": evaluation.relevance_to_jd,
+            "overall_score": evaluation.overall_score,
+            "summary": evaluation.summary,
+        } if evaluation else None,
+        "transcript": [
+            {
+                "role": msg.role,
+                "content": msg.content,
+                "timestamp": msg.timestamp,
+            }
+            for msg in messages
+        ],
+    }
