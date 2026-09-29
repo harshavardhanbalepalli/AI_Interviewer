@@ -1,9 +1,9 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import UploadResume from "./pages/UploadResume";
-import SelectJD from "./pages/SelectJD";
+import UploadResume from "./pages/uploadResume";
+import SelectJD from "./pages/selectJD";
 import Interview from "./pages/Interview";
-import Login from "./pages/login";
+import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ProtectedRoute from "./pages/ProtectedRoute";
 import AdminDashboard from "./pages/AdminDashboard";
