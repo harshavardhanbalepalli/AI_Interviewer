@@ -2,6 +2,7 @@ import textwrap
 def build_interview_prompt(
     resume,
     job_description,
+    skills,
     history,
 ):
     return textwrap.dedent(
@@ -14,6 +15,12 @@ JOB DESCRIPTION
 =========================
 
 {job_description}
+
+=========================
+REQUIRED SKILLS
+=========================
+
+{skills}
 
 =========================
 CANDIDATE RESUME
@@ -44,6 +51,8 @@ Use the candidate's resume as evidence of their background.
 If the resume mentions a project, ask about its design decisions, implementation, challenges, trade-offs, and technologies.
 
 If the resume lists a skill, verify practical understanding instead of assuming proficiency.
+
+Make sure you ask about each skill listed in REQUIRED SKILLS at some point during the interview, even if it isn't mentioned in the resume.
 
 Avoid asking questions about technologies that are unrelated to the resume or job description unless they are fundamental concepts.
 

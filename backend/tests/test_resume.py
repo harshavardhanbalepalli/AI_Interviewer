@@ -44,4 +44,4 @@ def test_get_resume_after_upload(client):
     response = client.get("/resume", headers=auth_headers(token))
 
     assert response.status_code == 200
-    assert "file_path" in response.json()
+    assert response.json()["file_path"].startswith("https://")

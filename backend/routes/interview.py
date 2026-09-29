@@ -61,6 +61,8 @@ def get_interview_context(
     "status": interview.status,
     "resume": resume.resume_text,
     "job_description": jd.description,
+    "job_title": jd.title,
+    "skills": jd.skills,
     "history": history
 }
 

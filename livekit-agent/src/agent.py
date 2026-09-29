@@ -18,6 +18,16 @@ from livekit.plugins import ai_coustics, assemblyai
 from prompts import build_interview_prompt
 logger = logging.getLogger("agent")
 
+# AssemblyAI streaming limits: https://www.assemblyai.com/docs/streaming/prompting-and-keyterms
+MAX_KEYTERMS = 100
+MAX_KEYTERM_CHARS = 50
+
+
+def build_keyterms(skills: str) -> list[str]:
+    terms = (term.strip() for term in (skills or "").split(","))
+    terms = [term for term in terms if term and len(term) <= MAX_KEYTERM_CHARS]
+    return list(dict.fromkeys(terms))[:MAX_KEYTERMS]
+
 load_dotenv(".env.local")
 async def get_interview_context(interview_id: int):
 
@@ -222,8 +232,11 @@ async def my_agent(ctx: JobContext):
     interview_context = await get_interview_context(interview_id)
     resume = interview_context.get("resume", "")
     job_description = interview_context.get("job_description", "")
+    skills = interview_context.get("skills", "") or ""
     history = interview_context.get("history", [])
-    prompt=build_interview_prompt(resume, job_description, history)
+    keyterms = build_keyterms(skills)
+    prompt=build_interview_prompt(resume, job_description, skills, history)
+    logger.info("STT keyterms: %s", keyterms)
     logger.info(
     "Prompt generated (%d characters)",
     len(prompt),
@@ -246,6 +259,7 @@ async def my_agent(ctx: JobContext):
         # See https://docs.livekit.io/agents/models/stt/plugins/assemblyai/
         stt=assemblyai.STT(
             model="universal-3-5-pro",
+            keyterms_prompt=keyterms,
         ),
         # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
         # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/

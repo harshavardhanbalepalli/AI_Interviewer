@@ -9,8 +9,11 @@ from database import Base, get_db
 
 
 @pytest.fixture(autouse=True)
-def _isolate_uploads(monkeypatch, tmp_path):
-    monkeypatch.setattr("routes.resume.UPLOAD_DIR", str(tmp_path))
+def _mock_resume_storage(monkeypatch):
+    def fake_upload_resume_file(contents: bytes, user_id: int) -> str:
+        return f"https://fake-cloudinary.test/resumes/user_{user_id}.pdf"
+
+    monkeypatch.setattr("routes.resume.upload_resume_file", fake_upload_resume_file)
 
 
 @pytest.fixture()

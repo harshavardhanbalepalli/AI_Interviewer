@@ -1,5 +1,9 @@
-import fitz
 import os
+
+import cloudinary
+import cloudinary.uploader
+import fitz
+from dotenv import load_dotenv
 
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -8,10 +12,26 @@ from models import Resume
 from auth.dependencies import get_current_user
 from schemas import ResumeResponse
 
+load_dotenv()
+
 router = APIRouter()
 
-UPLOAD_DIR = "uploads"
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+    secure=True,
+)
+
+
+def upload_resume_file(contents: bytes, user_id: int) -> str:
+    result = cloudinary.uploader.upload(
+        contents,
+        resource_type="raw",
+        public_id=f"resumes/user_{user_id}",
+        overwrite=True,
+    )
+    return result["secure_url"]
 
 
 @router.post("/upload")
@@ -21,17 +41,9 @@ async def upload_resume(
     db: Session = Depends(get_db)
 ):
     # One PDF per user
-    file_path = os.path.join(
-        UPLOAD_DIR,
-        f"user_{current_user['user_id']}.pdf"
-    )
-
     contents = await file.read()
 
-    with open(file_path, "wb") as f:
-        f.write(contents)
-
-    pdf = fitz.open(file_path)
+    pdf = fitz.open(stream=contents, filetype="pdf")
 
     extracted_text = ""
 
@@ -39,6 +51,8 @@ async def upload_resume(
         extracted_text += page.get_text()
 
     pdf.close()
+
+    file_path = upload_resume_file(contents, current_user["user_id"])
 
     print("Resume text extracted successfully")
 
